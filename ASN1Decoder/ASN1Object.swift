@@ -49,7 +49,7 @@ public class ASN1Object: CustomStringConvertible {
     }
 
     public func findOid(_ oid: OID) -> ASN1Object? {
-        return findOid(oid.rawValue)
+        return findOid(oid.rawValueString)
     }
     
     public func findOid(_ oid: String) -> ASN1Object? {

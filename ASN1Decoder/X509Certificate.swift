@@ -23,7 +23,8 @@
 
 import Foundation
 
-public class X509Certificate: CustomStringConvertible {
+@objc
+public class X509Certificate: NSObject {
     private let asn1: [ASN1Object]
     private let block1: ASN1Object
 
@@ -47,6 +48,22 @@ public class X509Certificate: CustomStringConvertible {
         } else {
             try self.init(der: data)
         }
+    }
+    
+    @objc
+    public convenience init(certPEM: String) throws {
+        var certPEMData: Data { return certPEM.data(using: .utf8)! }
+        
+        try self.init(data: certPEMData)
+    }
+    
+    @objc
+    public convenience init(cert: String) throws {
+        guard let certData = Data(base64Encoded: cert) else {
+            throw NSError(domain: "Parse cert is failed", code: 0)
+        }
+        
+        try self.init(data: certData)
     }
 
     public init(der: Data) throws {
@@ -74,7 +91,7 @@ public class X509Certificate: CustomStringConvertible {
         self.block1 = block1
     }
 
-    public var description: String {
+    public override var description: String {
         return asn1.reduce("") { $0 + "\($1.description)\n" }
     }
 
@@ -87,9 +104,10 @@ public class X509Certificate: CustomStringConvertible {
     }
 
     /// Gets the version (version number) value from the certificate.
-    public var version: Int? {
+    @objc
+    public var version: NSNumber? { // Int?
         if let data = firstLeafValue(block: block1) as? Data, let value = data.uint64Value, value < Int.max {
-            return Int(value) + 1
+            return (Int(value) + 1) as NSNumber
         }
         return 1
     }
@@ -97,6 +115,12 @@ public class X509Certificate: CustomStringConvertible {
     /// Gets the serialNumber value from the certificate.
     public var serialNumber: Data? {
         return block1[X509BlockPosition.serialNumber]?.value as? Data
+    }
+    
+    /// Gets the serialNumber value from the certificate.
+    @objc
+    public func hexEncodedStringOfSerialNumber() -> String {
+        return self.serialNumber?.hexEncodedString() ?? ""
     }
 
     /// Returns the issuer (issuer distinguished name) value from the certificate as a String.
@@ -129,7 +153,7 @@ public class X509Certificate: CustomStringConvertible {
     }
     
     public func issuer(oid: OID) -> String? {
-        return issuer(oidString: oid.rawValue)
+        return issuer(oidString: oid.rawValueString)
     }
     
     @available(*, deprecated, message: "Use issuer(oid:) instead")
@@ -138,6 +162,7 @@ public class X509Certificate: CustomStringConvertible {
     }
     
     /// Returns the subject (subject distinguished name) value from the certificate as a String.
+    @objc
     public var subjectDistinguishedName: String? {
         if let subjectBlock = block1[X509BlockPosition.subject] {
             return ASN1DistinguishedNameFormatter.string(from: subjectBlock)
@@ -157,6 +182,7 @@ public class X509Certificate: CustomStringConvertible {
         return result
     }
 
+    @objc
     public func subject(oidString: String) -> [String]? {
         var result: [String]?
         if let subjectBlock = block1[X509BlockPosition.subject] {
@@ -175,8 +201,16 @@ public class X509Certificate: CustomStringConvertible {
         return result
     }
 
+    @objc
     public func subject(oid: OID) -> [String]? {
-        return subject(oidString: oid.rawValue)
+        return subject(oidString: oid.rawValueString)
+    }
+    
+    @objc
+    public func subject(oidRawValue: Int) -> [String]? {
+        let oid = OID(rawValue: oidRawValue)
+        
+        return subject(oid: oid!)
     }
 
     @available(*, deprecated, message: "Use subject(oid:) instead")
@@ -288,7 +322,7 @@ public class X509Certificate: CustomStringConvertible {
 
     /// Gets the extension information of the given OID enum.
     public func extensionObject(oid: OID) -> X509Extension? {
-        return extensionObject(oid: oid.rawValue)
+        return extensionObject(oid: oid.rawValueString)
     }
     
     /// Gets the extension information of the given OID code.
@@ -301,12 +335,12 @@ public class X509Certificate: CustomStringConvertible {
 
     // Association of Class decoding helper and OID
     private let oidExtensionMap: [String: X509Extension.Type] = [
-        OID.basicConstraints.rawValue: BasicConstraintExtension.self,
-        OID.subjectKeyIdentifier.rawValue: SubjectKeyIdentifierExtension.self,
-        OID.authorityInfoAccess.rawValue: AuthorityInfoAccessExtension.self,
-        OID.authorityKeyIdentifier.rawValue: AuthorityKeyIdentifierExtension.self,
-        OID.certificatePolicies.rawValue: CertificatePoliciesExtension.self,
-        OID.cRLDistributionPoints.rawValue: CRLDistributionPointsExtension.self
+        OID.basicConstraints.rawValueString: BasicConstraintExtension.self,
+        OID.subjectKeyIdentifier.rawValueString: SubjectKeyIdentifierExtension.self,
+        OID.authorityInfoAccess.rawValueString: AuthorityInfoAccessExtension.self,
+        OID.authorityKeyIdentifier.rawValueString: AuthorityKeyIdentifierExtension.self,
+        OID.certificatePolicies.rawValueString: CertificatePoliciesExtension.self,
+        OID.cRLDistributionPoints.rawValueString: CRLDistributionPointsExtension.self
     ]
     
     // read possibile PEM encoding
@@ -355,5 +389,11 @@ extension ASN1Object {
             guard sub.indices.contains(index.rawValue) else { return nil }
             return sub[index.rawValue]
         }
+    }
+}
+
+extension Data {
+    func hexEncodedString(separation: String = "") -> String {
+        return reduce("") {$0 + String(format: "%02X\(separation)", $1)}
     }
 }

@@ -36,7 +36,7 @@ public class PKCS7 {
 
         self.mainBlock = mainBlock
 
-        guard firstBlock.sub(0)?.value as? String == OID.pkcs7signedData.rawValue else {
+        guard firstBlock.sub(0)?.value as? String == OID.pkcs7signedData.rawValueString else {
             throw PKCS7Error.notSupported
         }
     }

@@ -1,0 +1,11 @@
+framework module ASN1Decoder {
+  umbrella header "ASN1Decoder.h"
+
+  export *
+  module * { export * }
+}
+
+module ASN1Decoder.Swift {
+    header "ASN1Decoder-Swift.h"
+    requires objc
+}
